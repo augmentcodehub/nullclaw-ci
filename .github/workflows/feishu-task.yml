@@ -105,9 +105,13 @@ jobs:
       - name: Commit nullclaw-ci results
         if: steps.task.outputs.status == 'success'
         run: |
+          echo "DEBUG: pwd=$(pwd)"
+          echo "DEBUG: articles contents:" && ls -la articles/ 2>&1 | head -5
+          echo "DEBUG: rewritten contents:" && ls -la rewritten/ 2>&1 | head -5
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add articles/ rewritten/ output/ .mowen/ 2>/dev/null || true
+          git status
           git diff --cached --quiet || (git commit -m "Task: ${{ github.event.inputs.action }}" && git pull --rebase && git push)
 
       - name: Commit wiki changes
