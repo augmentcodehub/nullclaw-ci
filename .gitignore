@@ -3,6 +3,3 @@ mowen-cli.log
 .mowen/
 worker/wrangler.toml
 worker/.wrangler/
-articles/fetched-*
-rewritten/*.md
-!rewritten/.gitkeep
