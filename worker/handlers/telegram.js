@@ -1,0 +1,36 @@
+import { parseCommand, HELP_TEXT } from "../lib/command.js";
+import { triggerWorkflow } from "../lib/github.js";
+import { log } from "../lib/log.js";
+
+export async function handleTelegram(request, env) {
+  const body = await request.json();
+  const message = body.message;
+  if (!message || !message.text) return new Response("OK");
+
+  const chatId = message.chat.id;
+  const command = parseCommand(message.text.trim());
+
+  if (!command || command.action === "help") {
+    await sendTelegram(env, chatId, HELP_TEXT);
+    return new Response("OK");
+  }
+
+  await sendTelegram(env, chatId, `收到，正在处理... ⏳\n${command.action}: ${command.target || ""}`);
+  const { ok, error } = await triggerWorkflow(env, command, "telegram", chatId);
+  if (!ok) {
+    log.warn("telegram trigger failed", { chatId, action: command.action, error });
+    await sendTelegram(env, chatId, `⚠️ 触发失败: ${error}`);
+  }
+  return new Response("OK");
+}
+
+export async function sendTelegram(env, chatId, text) {
+  for (let i = 0; i < text.length; i += 4096) {
+    const resp = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text: text.substring(i, i + 4096) }),
+    });
+    if (!resp.ok) log.warn("sendTelegram failed", { status: resp.status, chatId });
+  }
+}
