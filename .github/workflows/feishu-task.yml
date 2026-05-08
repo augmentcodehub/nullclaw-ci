@@ -1,0 +1,120 @@
+name: Feishu Task
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'fetch / rewrite / skill / ingest / query / lint / distill'
+        required: true
+        type: string
+      target:
+        description: 'URL, file path, or question'
+        required: true
+        type: string
+      style:
+        description: 'lu-xun / ma-sanli / xu-zhimo'
+        required: false
+        type: string
+        default: ''
+      skill:
+        description: 'skill name'
+        required: false
+        type: string
+        default: ''
+      chat_id:
+        description: 'callback chat id'
+        required: true
+        type: string
+      callback_url:
+        description: 'callback url'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout wiki repo
+        if: vars.WIKI_REPO != ''
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.WIKI_REPO }}
+          path: llmwiki
+          token: ${{ secrets.LLMWIKI_TOKEN }}
+          ref: main
+
+      - name: Install NullClaw
+        run: |
+          curl -sL -o /usr/local/bin/nullclaw https://github.com/nullclaw/nullclaw/releases/download/v2026.5.4/nullclaw-linux-x86_64.bin
+          chmod +x /usr/local/bin/nullclaw
+
+      - name: Configure NullClaw
+        run: |
+          nullclaw onboard --api-key "${{ secrets.NULLCLAW_API_KEY }}" --provider "custom:${{ secrets.NULLCLAW_BASE_URL }}" --model "${{ vars.NULLCLAW_MODEL || 'mimo-v2.5-pro' }}"
+          nullclaw config set agent.message_timeout_secs 600
+          nullclaw config set autonomy.level autonomous
+          nullclaw config set autonomy.allowed_commands '["*"]'
+          nullclaw config set autonomy.workspace_only false
+          nullclaw config set security.sandbox.enabled false
+          nullclaw config set http_request.enabled true
+          nullclaw config set browser.enabled true
+
+      - name: Install dependencies
+        run: |
+          pip install playwright beautifulsoup4 lxml requests markdownify
+          playwright install chromium
+          # 安装 mowen-cli
+          curl -fSL -o /usr/local/bin/mowen-cli https://github.com/ohmycli/mowen-cli/releases/download/v0.4.0/mowen-cli-linux-x86_64
+          chmod +x /usr/local/bin/mowen-cli
+          /usr/local/bin/mowen-cli --version
+
+      - name: Install skills
+        run: |
+          mkdir -p ~/.nullclaw/workspace/skills
+          for d in skills/*/; do [ -f "$d/SKILL.md" ] && cp -r "$d" ~/.nullclaw/workspace/skills/$(basename "$d"); done
+          for d in skills/writers/*/; do [ -f "$d/SKILL.md" ] && cp -r "$d" ~/.nullclaw/workspace/skills/$(basename "$d"); done
+          # 安装 llmwiki 自带的 skills（如果配置了知识库仓库）
+          if [ -d llmwiki/.agents/skills ]; then
+            for d in llmwiki/.agents/skills/*/; do [ -f "$d/SKILL.md" ] && cp -r "$d" ~/.nullclaw/workspace/skills/$(basename "$d"); done
+          fi
+
+      - name: Execute task
+        id: task
+        env:
+          MOWEN_API_KEY: ${{ secrets.MOWEN_API_KEY }}
+          UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
+        run: |
+          chmod +x tools/run-task.sh
+          status=$(bash tools/run-task.sh "${{ github.event.inputs.action }}" "${{ github.event.inputs.target }}" "${{ github.event.inputs.style }}" "${{ github.event.inputs.skill }}")
+          echo "status=$status" >> $GITHUB_OUTPUT
+
+      - name: Callback
+        if: always()
+        run: |
+          result=$(cat /tmp/result.txt 2>/dev/null || echo "执行失败")
+          status="${{ steps.task.outputs.status || 'error' }}"
+          curl -s -X POST "${{ github.event.inputs.callback_url }}" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg secret "${{ secrets.CALLBACK_SECRET }}" --arg chat_id "${{ github.event.inputs.chat_id }}" --arg status "$status" --arg result "$result" '{secret: $secret, chat_id: $chat_id, status: $status, result: $result}')"
+
+      - name: Commit nullclaw-ci results
+        if: steps.task.outputs.status == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add articles/ rewritten/ output/ .mowen/ 2>/dev/null || true
+          git diff --cached --quiet || (git commit -m "Task: ${{ github.event.inputs.action }}" && git pull --rebase && git push)
+
+      - name: Commit wiki changes
+        if: steps.task.outputs.status == 'success' && vars.WIKI_REPO != ''
+        run: |
+          cd llmwiki
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || (git commit -m "wiki: ${{ github.event.inputs.action }} - ${{ github.event.inputs.target }}" && git push)
