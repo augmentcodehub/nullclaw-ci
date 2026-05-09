@@ -1,6 +1,18 @@
 import { log } from "./log.js";
 
-// 触发 GitHub Actions workflow，返回 { ok, error }
+/**
+ * @typedef {{ action: string, target?: string, style?: string, skill?: string }} Command
+ * @typedef {{ ok: boolean, error: string|null }} TriggerResult
+ */
+
+/**
+ * 触发 GitHub Actions workflow
+ * @param {object} env - Worker 环境变量
+ * @param {Command} command - 解析后的指令
+ * @param {string} channel - telegram|feishu|wecom
+ * @param {string} chatId - 用户标识
+ * @returns {Promise<TriggerResult>}
+ */
 export async function triggerWorkflow(env, command, channel, chatId) {
   const url = `https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/feishu-task.yml/dispatches`;
   let resp;

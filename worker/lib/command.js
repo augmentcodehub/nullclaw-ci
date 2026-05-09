@@ -1,4 +1,12 @@
-// 通用指令解析
+/**
+ * @typedef {{ action: string, target?: string, style?: string, skill?: string }} Command
+ */
+
+/**
+ * 通用指令解析
+ * @param {string} text - 用户消息文本
+ * @returns {Command|null}
+ */
 export function parseCommand(text) {
   if (!text) return null;
   text = text.replace(/^\/start\s*/, "").trim();

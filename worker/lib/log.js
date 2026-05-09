@@ -1,6 +1,13 @@
 // 结构化日志 — JSON 格式，wrangler tail 友好
+/** @typedef {{ channel?: string, userId?: string, [key: string]: any }} LogContext */
+
+let _ctx = {};
+
+/** @param {LogContext} ctx */
+export function setContext(ctx) { _ctx = ctx; }
+
 function emit(level, msg, fields) {
-  console[level](JSON.stringify({ ts: Date.now(), level, msg, ...fields }));
+  console[level](JSON.stringify({ ts: Date.now(), level, msg, ..._ctx, ...fields }));
 }
 
 export const log = {

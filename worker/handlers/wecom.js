@@ -3,7 +3,7 @@ import { parseCommand, HELP_TEXT } from "../lib/command.js";
 import { triggerWorkflow } from "../lib/github.js";
 import { getWecomToken } from "../lib/wecom-token.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
-import { log } from "../lib/log.js";
+import { log, setContext } from "../lib/log.js";
 
 // GET: 企业微信验证回调 URL
 export async function handleWecomVerify(request, env) {
@@ -52,6 +52,8 @@ export async function handleWecom(request, env) {
   const content = extractXml(message, "Content");
   const fromUser = extractXml(message, "FromUserName");
   const agentId = extractXml(message, "AgentID");
+  if (!content || !fromUser || !agentId) return new Response("OK");
+  setContext({ channel: "wecom", userId: fromUser });
 
   const command = parseCommand(content);
   if (!command || command.action === "help") {
@@ -88,9 +90,14 @@ export async function sendWecom(env, userId, agentId, text) {
   if (!resp.ok) log.warn("sendWecom failed", { status: resp.status, userId });
 }
 
-// 简易 XML 标签提取（企业微信消息格式固定，无需完整 XML 解析器）
+/**
+ * 简易 XML 标签提取（企业微信消息格式固定，无需完整 XML 解析器）
+ * @param {string} xml
+ * @param {string} tag
+ * @returns {string|null}
+ */
 function extractXml(xml, tag) {
   const match = xml.match(new RegExp(`<${tag}><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></${tag}>`))
     || xml.match(new RegExp(`<${tag}>([^<]*)</${tag}>`));
-  return match ? match[1] : "";
+  return match ? match[1] : null;
 }

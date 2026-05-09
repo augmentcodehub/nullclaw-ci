@@ -2,7 +2,7 @@ import { parseCommand, HELP_TEXT } from "../lib/command.js";
 import { triggerWorkflow } from "../lib/github.js";
 import { getFeishuToken } from "../lib/feishu-token.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
-import { log } from "../lib/log.js";
+import { log, setContext } from "../lib/log.js";
 
 export async function handleFeishu(request, env) {
   const body = await request.json();
@@ -39,6 +39,7 @@ export async function handleFeishu(request, env) {
     return new Response("OK");
   }
   const chatId = message.chat_id;
+  setContext({ channel: "feishu", userId: chatId });
   const command = parseCommand(text);
 
   if (!command || command.action === "help") {

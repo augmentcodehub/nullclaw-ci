@@ -1,9 +1,13 @@
 // 企业微信消息解密 — Web Crypto API (AES-256-CBC, PKCS#7)
-// EncodingAESKey 是 Base64 编码的 43 字符，解码后 32 字节作为 AES key
+
+/**
+ * @typedef {{ message: string, corpId: string }} DecryptResult
+ */
 
 /**
  * 从 EncodingAESKey 导入 CryptoKey
  * @param {string} encodingAESKey - 43 字符 Base64url-like key
+ * @returns {Promise<CryptoKey>}
  */
 async function importKey(encodingAESKey) {
   // 企业微信的 EncodingAESKey 是 43 字符 + 补 "="，标准 Base64
@@ -15,7 +19,7 @@ async function importKey(encodingAESKey) {
  * 解密企业微信消息
  * @param {string} encrypted - Base64 编码的密文
  * @param {string} encodingAESKey - 43 字符密钥
- * @returns {Promise<{message: string, corpId: string}>}
+ * @returns {Promise<DecryptResult>}
  */
 export async function decrypt(encrypted, encodingAESKey) {
   const key = await importKey(encodingAESKey);

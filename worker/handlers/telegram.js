@@ -1,7 +1,7 @@
 import { parseCommand, HELP_TEXT } from "../lib/command.js";
 import { triggerWorkflow } from "../lib/github.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
-import { log } from "../lib/log.js";
+import { log, setContext } from "../lib/log.js";
 
 export async function handleTelegram(request, env) {
   // 验证请求来自 Telegram（secret_token 在 /setup 时设置）
@@ -14,6 +14,7 @@ export async function handleTelegram(request, env) {
   if (!message || !message.text) return new Response("OK");
 
   const chatId = message.chat.id;
+  setContext({ channel: "telegram", userId: String(chatId) });
   const command = parseCommand(message.text.trim());
 
   if (!command || command.action === "help") {
