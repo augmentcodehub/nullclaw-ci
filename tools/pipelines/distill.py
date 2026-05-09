@@ -4,19 +4,17 @@ import re
 from pathlib import Path
 from capabilities.ai_runner import run_skill
 
-# 常见人物名中文→拼音映射（可扩展）
+# 特殊人物名映射（优先覆盖，处理连读/别名）
 _NAME_MAP = {
-    "鲁迅": "lu-xun", "马三立": "ma-sanli", "徐志摩": "xu-zhimo",
-    "李白": "li-bai", "苏东坡": "su-dongpo", "苏轼": "su-shi",
-    "杜甫": "du-fu", "王小波": "wang-xiaobo", "林语堂": "lin-yutang",
-    "钱钟书": "qian-zhongshu", "张爱玲": "zhang-ailing",
-    "老舍": "lao-she", "沈从文": "shen-congwen",
+    "苏东坡": "su-dongpo", "苏轼": "su-shi",
+    "马三立": "ma-sanli", "徐志摩": "xu-zhimo",
+    "老舍": "lao-she",
 }
 
 
 def execute(target: str, **kwargs) -> str:
     name = target.strip().strip("<>")
-    slug = _NAME_MAP.get(name, _to_slug(name))
+    slug = _get_slug(name)
     target_dir = Path(f"skills/writers/{slug}-writer")
 
     # 调用女娲蒸馏
@@ -39,11 +37,16 @@ def execute(target: str, **kwargs) -> str:
     return result or "错误：蒸馏失败"
 
 
-def _to_slug(name: str) -> str:
-    """简单 fallback：非 ASCII 字符保留，空格转连字符，小写"""
-    s = name.lower().replace(" ", "-")
-    s = re.sub(r"[^a-z0-9\u4e00-\u9fff-]", "", s)
-    return s or "unknown"
+def _get_slug(name: str) -> str:
+    """中文名转拼音 slug，优先用映射表"""
+    if name in _NAME_MAP:
+        return _NAME_MAP[name]
+    try:
+        from pypinyin import lazy_pinyin
+        return "-".join(lazy_pinyin(name))
+    except ImportError:
+        # fallback: 保留 ASCII，中文用连字符连接
+        return re.sub(r"[^a-z0-9-]", "", name.lower().replace(" ", "-")) or "unknown"
 
 
 def _find_generated_skill(name: str, slug: str) -> str | None:
