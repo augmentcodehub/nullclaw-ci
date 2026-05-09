@@ -94,12 +94,11 @@ jobs:
           STYLE="${{ github.event.inputs.style }}"
           SKILL="${{ github.event.inputs.skill }}"
 
-          cd tools
           case "$ACTION" in
-            rewrite)        python3 run_task.py rewrite "$TARGET" --style "$STYLE" ;;
-            skill)          python3 run_task.py skill "$TARGET" --skill "$SKILL" ;;
-            pending|lint)   python3 run_task.py "$ACTION" ;;
-            *)              python3 run_task.py "$ACTION" "$TARGET" ;;
+            rewrite)        python3 tools/run_task.py rewrite "$TARGET" --style "$STYLE" ;;
+            skill)          python3 tools/run_task.py skill "$TARGET" --skill "$SKILL" ;;
+            pending|lint)   python3 tools/run_task.py "$ACTION" ;;
+            *)              python3 tools/run_task.py "$ACTION" "$TARGET" ;;
           esac || true
 
           if [ -f /tmp/result.txt ] && [ -s /tmp/result.txt ]; then
