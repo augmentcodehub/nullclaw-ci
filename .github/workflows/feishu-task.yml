@@ -89,8 +89,18 @@ jobs:
           MOWEN_API_KEY: ${{ secrets.MOWEN_API_KEY }}
           UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
         run: |
-          chmod +x tools/run-task.sh
-          bash tools/run-task.sh "${{ github.event.inputs.action }}" "${{ github.event.inputs.target }}" "${{ github.event.inputs.style }}" "${{ github.event.inputs.skill }}" >/dev/null
+          ACTION="${{ github.event.inputs.action }}"
+          TARGET="${{ github.event.inputs.target }}"
+          STYLE="${{ github.event.inputs.style }}"
+          SKILL="${{ github.event.inputs.skill }}"
+
+          cd tools
+          case "$ACTION" in
+            rewrite) python3 run_task.py rewrite "$TARGET" --style "$STYLE" ;;
+            skill)   python3 run_task.py skill "$TARGET" --skill "$SKILL" ;;
+            *)       python3 run_task.py "$ACTION" "$TARGET" ;;
+          esac || true
+
           if [ -f /tmp/result.txt ] && [ -s /tmp/result.txt ]; then
             echo "status=success" >> $GITHUB_OUTPUT
           else
