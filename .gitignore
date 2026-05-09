@@ -3,3 +3,4 @@ mowen-cli.log
 .mowen/
 worker/wrangler.toml
 worker/.wrangler/
+__pycache__/
