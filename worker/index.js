@@ -20,7 +20,7 @@ export default {
 
     try {
       // Telegram
-      if (path === "/telegram/webhook" && request.method === "POST") {
+      if (path === `/telegram/webhook/${env.CALLBACK_SECRET}` && request.method === "POST") {
         return await handleTelegram(request, env);
       }
       // 飞书
@@ -43,7 +43,7 @@ export default {
         if (url.searchParams.get("token") !== env.CALLBACK_SECRET) {
           return new Response("Forbidden", { status: 403 });
         }
-        const webhookUrl = `${url.origin}/telegram/webhook`;
+        const webhookUrl = `${url.origin}/telegram/webhook/${env.CALLBACK_SECRET}`;
         const resp = await fetch(
           `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/setWebhook?url=${encodeURIComponent(webhookUrl)}&secret_token=${encodeURIComponent(env.CALLBACK_SECRET)}`
         );
