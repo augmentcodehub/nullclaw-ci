@@ -53,6 +53,8 @@ def main():
     # 延迟 import，避免无关模块的依赖报错
     from pipelines import fetch, rewrite, ingest, query, distill, publish, pending, lint
     from capabilities import ai_runner
+    from capabilities.logger import get_logger
+    log = get_logger("cli")
 
     handlers = {
         "fetch": lambda: fetch.execute(args.target),
@@ -66,12 +68,14 @@ def main():
         "skill": lambda: ai_runner.run_skill(args.skill, args.target),
     }
 
+    log.info("task start", extra={"action": args.action})
     result = handlers[args.action]()
 
     # 输出结果
     output = result or "执行超时或无输出"
     Path("/tmp/result.txt").write_text(output, encoding="utf-8")
     status = "success" if result else "error"
+    log.info("task done", extra={"action": args.action, "status": status, "length": len(output)})
     print(status)
     sys.exit(0 if result else 1)
 

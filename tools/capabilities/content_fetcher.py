@@ -3,20 +3,34 @@ import subprocess
 import urllib.request
 import re
 from pathlib import Path
+from capabilities.logger import get_logger
+
+log = get_logger("fetcher")
 
 
 def fetch(url: str) -> str | None:
     """抓取 URL 内容为 Markdown，按优先级尝试多种方式"""
+    log.info("fetch start", extra={"url": url})
+
     if "mp.weixin.qq.com" in url:
         content = _try_weixin(url)
         if content:
+            log.info("fetched via weixin", extra={"length": len(content)})
             return content
+        log.warning("weixin failed, trying jina")
 
     content = _try_jina(url)
     if content:
+        log.info("fetched via jina", extra={"length": len(content)})
         return content
+    log.warning("jina failed, trying defuddle")
 
-    return _try_defuddle(url)
+    content = _try_defuddle(url)
+    if content:
+        log.info("fetched via defuddle", extra={"length": len(content)})
+    else:
+        log.error("all fetch methods failed", extra={"url": url})
+    return content
 
 
 def _try_weixin(url: str) -> str | None:
