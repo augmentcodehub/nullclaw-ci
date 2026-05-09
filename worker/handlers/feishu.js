@@ -1,6 +1,7 @@
 import { parseCommand, HELP_TEXT } from "../lib/command.js";
 import { triggerWorkflow } from "../lib/github.js";
 import { getFeishuToken } from "../lib/feishu-token.js";
+import { checkRateLimit } from "../lib/rate-limit.js";
 import { log } from "../lib/log.js";
 
 export async function handleFeishu(request, env) {
@@ -31,7 +32,12 @@ export async function handleFeishu(request, env) {
   const message = body.event.message;
   if (message.message_type !== "text") return new Response("OK");
 
-  const text = JSON.parse(message.content).text.trim();
+  let text;
+  try {
+    text = JSON.parse(message.content).text.trim();
+  } catch {
+    return new Response("OK");
+  }
   const chatId = message.chat_id;
   const command = parseCommand(text);
 
@@ -41,6 +47,10 @@ export async function handleFeishu(request, env) {
   }
 
   await sendFeishu(env, chatId, `收到，正在处理... ⏳\n${command.action}: ${command.target || ""}`);
+  if (!await checkRateLimit("feishu", chatId)) {
+    await sendFeishu(env, chatId, "⚠️ 操作太频繁，请稍后再试");
+    return new Response("OK");
+  }
   const { ok, error } = await triggerWorkflow(env, command, "feishu", chatId);
   if (!ok) {
     log.warn("feishu trigger failed", { chatId, action: command.action, error });

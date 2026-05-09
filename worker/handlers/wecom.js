@@ -2,6 +2,7 @@ import { decrypt, sign } from "../lib/crypto.js";
 import { parseCommand, HELP_TEXT } from "../lib/command.js";
 import { triggerWorkflow } from "../lib/github.js";
 import { getWecomToken } from "../lib/wecom-token.js";
+import { checkRateLimit } from "../lib/rate-limit.js";
 import { log } from "../lib/log.js";
 
 // GET: 企业微信验证回调 URL
@@ -59,6 +60,10 @@ export async function handleWecom(request, env) {
   }
 
   await sendWecom(env, fromUser, agentId, `收到，正在处理... ⏳\n${command.action}: ${command.target || ""}`);
+  if (!await checkRateLimit("wecom", fromUser)) {
+    await sendWecom(env, fromUser, agentId, "⚠️ 操作太频繁，请稍后再试");
+    return new Response("OK");
+  }
   const { ok, error } = await triggerWorkflow(env, command, "wecom", `${fromUser}|${agentId}`);
   if (!ok) {
     log.warn("wecom trigger failed", { fromUser, action: command.action, error });

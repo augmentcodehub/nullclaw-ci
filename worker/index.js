@@ -3,6 +3,16 @@ import { handleFeishu, sendFeishu } from "./handlers/feishu.js";
 import { handleWecom, handleWecomVerify, sendWecom } from "./handlers/wecom.js";
 import { log } from "./lib/log.js";
 
+// 常量时间字符串比较，防止时序攻击
+function timingSafeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -35,7 +45,7 @@ export default {
         }
         const webhookUrl = `${url.origin}/telegram/webhook`;
         const resp = await fetch(
-          `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/setWebhook?url=${encodeURIComponent(webhookUrl)}`
+          `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/setWebhook?url=${encodeURIComponent(webhookUrl)}&secret_token=${encodeURIComponent(env.CALLBACK_SECRET)}`
         );
         return new Response(await resp.text(), { headers: { "Content-Type": "application/json" } });
       }
@@ -50,11 +60,13 @@ export default {
 // 回调处理（Actions 完成后回传结果）
 async function handleCallback(request, env) {
   const body = await request.json();
-  if (body.secret !== env.CALLBACK_SECRET) {
+  if (!timingSafeEqual(body.secret || "", env.CALLBACK_SECRET)) {
     return new Response("Unauthorized", { status: 401 });
   }
 
   const { chat_id, status, result } = body;
+  if (!chat_id || !status) return new Response("Bad Request", { status: 400 });
+
   const [channel, ...rest] = chat_id.split(":");
   const id = rest.join(":");
   const msg = result || "";
