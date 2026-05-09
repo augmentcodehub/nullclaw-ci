@@ -152,10 +152,10 @@ ${result}" > "$outfile"
     ;;
 
   distill)
-    # 蒸馏人物
-    result=$(timeout 300 nullclaw agent --skill nuwa-skill \
-      --workspace llmwiki \
-      -m "请蒸馏：${target}。按女娲流程执行，生成 SKILL.md 保存到 .agents/skills/ 目录下。" 2>/dev/null)
+    # 蒸馏人物 → 生成 writer skill
+    target_name=$(echo "$target" | sed 's/[<>]//g' | xargs)
+    result=$(timeout 600 nullclaw agent --skill nuwa-skill \
+      -m "请蒸馏：${target_name}。按女娲流程执行，生成的 SKILL.md 保存到 skills/writers/${target_name}-writer/ 目录下。注意：生成的是一个 writer skill，用于改写文章，name 字段格式为 xxx-writer。" 2>/dev/null)
     ;;
 
   publish)
