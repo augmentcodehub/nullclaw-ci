@@ -156,6 +156,19 @@ ${result}" > "$outfile"
     target_name=$(echo "$target" | sed 's/[<>]//g' | xargs)
     result=$(timeout 600 nullclaw agent --skill nuwa-skill \
       -m "请蒸馏：${target_name}。按女娲流程执行，生成的 SKILL.md 保存到 skills/writers/${target_name}-writer/ 目录下。注意：生成的是一个 writer skill，用于改写文章，name 字段格式为 xxx-writer。" 2>/dev/null)
+
+    # 兜底：NullClaw 可能忽略路径指令，找到文件移到正确位置
+    target_dir="skills/writers/${target_name}-writer"
+    if [ ! -f "${target_dir}/SKILL.md" ]; then
+      found=$(find . -path "*${target_name}*SKILL.md" -not -path "./.git/*" -not -path "${target_dir}/*" 2>/dev/null | head -1)
+      if [ -z "$found" ]; then
+        found=$(find . -name "SKILL.md" -newer /tmp/result.txt -not -path "./.git/*" 2>/dev/null | head -1)
+      fi
+      if [ -n "$found" ]; then
+        mkdir -p "${target_dir}"
+        cp "$found" "${target_dir}/SKILL.md"
+      fi
+    fi
     ;;
 
   publish)
